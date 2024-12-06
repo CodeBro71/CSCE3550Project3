@@ -13,6 +13,34 @@ from argon2 import PasswordHasher
 import datetime
 import sqlite3
 
+# function to encrpyt a bytes object
+def encrypt(msg):
+    cipher = AES.new(encryption_key, AES.MODE_EAX)
+    nonce = cipher.nonce
+    ciphertext, tag = cipher.encrypt_and_digest(msg)
+    return nonce, ciphertext, tag
+
+# function to decrypt a bytes object
+def decrypt(nonce, ciphertext, tag):
+    cipher = AES.new(encryption_key, AES.MODE_EAX, nonce=nonce)
+    bytes = cipher.decrypt(ciphertext)
+    try:
+        cipher.verify(tag)
+        return bytes
+    except:
+        return False
+
+# taken from provided project 1 code
+def int_to_base64(value):
+    """Convert an integer to a Base64URL-encoded string"""
+    value_hex = format(value, 'x')
+    # Ensure even length
+    if len(value_hex) % 2 == 1:
+        value_hex = '0' + value_hex
+    value_bytes = bytes.fromhex(value_hex)
+    encoded = base64.urlsafe_b64encode(value_bytes).rstrip(b'=')
+    return encoded.decode('utf-8')
+
 # create a database to store the keys
 connection = sqlite3.connect('totally_not_my_privateKeys.db')
 cursor = connection.cursor()
@@ -55,37 +83,9 @@ private_key = rsa_keys.private_bytes(serialization.Encoding.PEM, serialization.P
 load_dotenv()
 hex_key = os.environ.get('NOT_MY_KEY')
 encryption_key = bytes.fromhex(hex_key)
-
-# function to encrpyt a bytes object
-def encrypt(msg):
-    cipher = AES.new(encryption_key, AES.MODE_EAX)
-    nonce = cipher.nonce
-    ciphertext, tag = cipher.encrypt_and_digest(msg)
-    return nonce, ciphertext, tag
-
-# function to decrypt a bytes object
-def decrypt(nonce, ciphertext, tag):
-    cipher = AES.new(encryption_key, AES.MODE_EAX, nonce=nonce)
-    bytes = cipher.decrypt(ciphertext)
-    try:
-        cipher.verify(tag)
-        return bytes
-    except:
-        return False
     
 # encrypt the private key with AES
 nonce, ciphertext, tag = encrypt(private_key)
-
-# taken from provided project 1 code
-def int_to_base64(value):
-    """Convert an integer to a Base64URL-encoded string"""
-    value_hex = format(value, 'x')
-    # Ensure even length
-    if len(value_hex) % 2 == 1:
-        value_hex = '0' + value_hex
-    value_bytes = bytes.fromhex(value_hex)
-    encoded = base64.urlsafe_b64encode(value_bytes).rstrip(b'=')
-    return encoded.decode('utf-8')
 
 # insert an unexpired encrypted key into the database
 exp_time = int((datetime.datetime.now() + datetime.timedelta(hours = 1)).timestamp())
